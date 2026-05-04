@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>محلل صحة البطارية</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; background: #f5f5f5; }
+        .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-top: 20px; }
+        .progress { height: 30px; background: #eee; border-radius: 15px; overflow: hidden; margin: 15px 0; }
+        .progress-fill { height: 100%; border-radius: 15px; text-align: center; color: white; line-height: 30px; }
+        .good { background: #4caf50; } .medium { background: #ff9800; } .bad { background: #f44336; }
+        table { width: 100%; border-collapse: collapse; }
+        td { padding: 8px; border-bottom: 1px solid #eee; }
+        .label { font-weight: bold; color: #555; }
+    </style>
+</head>
+<body>
+    <h1>🔋 محلل صحة بطارية اللابتوب</h1>
+    <p>ارفع ملف <code>battery-report.html</code> الناتج عن أمر <code>powercfg /batteryreport</code>.</p>
+    <input type="file" id="fileInput" accept=".html">
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const designMatch = text.match(/DESIGN CAPACITY\s+([\d,]+)\s+mWh/);
+                const fullMatch = text.match(/FULL CHARGE CAPACITY\s+([\d,]+)\s+mWh/);
+                const cyclesMatch = text.match(/CYCLE COUNT\s+([\d,]+)/);
+                if (!designMatch || !fullMatch) {
+                    document.getElementById('result').innerHTML = '<div class="card"><p>❌ لم نتمكن من قراءة التقرير. تأكد من الملف.</p></div>';
+                    return;
+                }
+                const design = parseInt(designMatch[1].replace(/,/g, ''));
+                const full = parseInt(fullMatch[1].replace(/,/g, ''));
+                const cycles = cyclesMatch ? cyclesMatch[1] : 'غير معروف';
+                const health = ((full / design) * 100).toFixed(1);
+                let status, statusClass;
+                if (health >= 80) { status = '🟢 ممتازة'; statusClass = 'good'; }
+                else if (health >= 50) { status = '🟡 متوسطة'; statusClass = 'medium'; }
+                else { status = '🔴 ضعيفة'; statusClass = 'bad'; }
+                document.getElementById('result').innerHTML = `
+                    <div class="card">
+                        <h2>نتيجة التحليل</h2>
+                        <table>
+                            <tr><td class="label">السعة التصميمية</td><td>${design.toLocaleString()} mWh</td></tr>
+                            <tr><td class="label">السعة الفعلية الحالية</td><td>${full.toLocaleString()} mWh</td></tr>
+                            <tr><td class="label">عدد دورات الشحن</td><td>${cycles}</td></tr>
+                        </table>
+                        <div class="progress">
+                            <div class="progress-fill ${statusClass}" style="width: ${health}%">${health}%</div>
+                        </div>
+                        <p><strong>نسبة الصحة:</strong> ${health}% من السعة الأصلية</p>
+                        <p><strong>الحالة:</strong> ${status}</p>
+                    </div>
+                `;
+            };
+            reader.readAsText(file);
+        });
+    </script>
+</body>
+</html>
